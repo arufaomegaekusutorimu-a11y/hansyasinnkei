@@ -30,9 +30,10 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* ゲームエリア全体 */
         #game-area {
-            width: 100%;
-            height: 100%;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -40,21 +41,22 @@
             text-align: center;
             transition: background-color 0.05s ease;
             cursor: pointer;
+            z-index: 1;
         }
 
-        /* 状態別背景色 */
         #game-area.waiting { background-color: var(--bg-waiting); color: var(--text-light); }
         #game-area.ready { background-color: var(--bg-ready); color: var(--text-light); }
         #game-area.error { background-color: var(--bg-error); color: var(--text-light); }
 
         .label { font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; opacity: 0.8; }
         .main-display { font-size: 3.5rem; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
-        .sub-text { font-size: 1rem; margin-top: 20px; }
+        .sub-text { font-size: 1rem; margin-top: 20px; padding: 0 20px; }
 
-        /* シェアボタン */
+        /* シェアボタンのコンテナ：ゲームエリアより前面に配置 */
         #share-container {
-            position: absolute;
-            bottom: 10%;
+            position: fixed;
+            bottom: 15%;
+            z-index: 10;
             display: none;
         }
 
@@ -62,15 +64,17 @@
             background: #000;
             color: #fff;
             border: none;
-            padding: 15px 30px;
-            border-radius: 4px;
-            font-size: 0.9rem;
+            padding: 18px 40px;
+            border-radius: 8px;
+            font-size: 1rem;
             font-weight: bold;
             text-decoration: none;
-            cursor: pointer;
+            display: block;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        #game-area.result-view #share-container { display: block; }
+        /* リザルト表示中のみシェアボタンを表示 */
+        .result-view #share-container { display: block; }
     </style>
 </head>
 <body>
@@ -79,11 +83,11 @@
     <div id="content">
         <p id="label" class="label">REACTION TEST</p>
         <h1 id="main-display" class="main-display">TAP TO START</h1>
-        <p id="sub-text" class="sub-text">画面をタップして開始します</p>
+        <p id="sub-text" class="sub-text">画面をタップして開始</p>
     </div>
 
     <div id="share-container">
-        <a id="share-x" class="share-btn" target="_blank">X (TWITTER) SHARE</a>
+        <a id="share-x" class="share-btn" target="_blank">Xに結果を投稿する</a>
     </div>
 </div>
 
@@ -92,12 +96,14 @@
     const label = document.getElementById('label');
     const mainDisplay = document.getElementById('main-display');
     const subText = document.getElementById('sub-text');
+    const shareContainer = document.getElementById('share-container');
     const shareBtn = document.getElementById('share-x');
 
     let state = 'START'; 
     let startTime;
     let timer;
 
+    // ゲーム全体のクリック処理
     const handleInput = (e) => {
         if (e.type === 'touchstart') e.preventDefault();
         
@@ -118,13 +124,26 @@
     area.addEventListener('mousedown', handleInput);
     area.addEventListener('touchstart', handleInput);
 
+    // 【重要】シェアボタンが押された時にゲームのリセットを防ぐ
+    const preventReset = (e) => {
+        e.stopPropagation(); // 親要素（game-area）へのイベント伝達をストップ
+    };
+
+    shareContainer.addEventListener('mousedown', preventReset);
+    shareContainer.addEventListener('touchstart', preventReset);
+
     function prepare() {
         state = 'WAITING';
         area.className = 'waiting';
         label.innerText = 'WAITING';
         mainDisplay.innerText = '...';
-        subText.innerText = '緑色に変わったらタップしてください';
+        subText.innerText = '緑色になったらタップ！';
+    }
 
+    // WAITINGの実際のタイマー開始（描画ラグ考慮）
+    area.addEventListener('transitionend', () => {
+        if (state !== 'WAITING') return;
+        clearTimeout(timer);
         const delay = Math.random() * 3000 + 2000;
         timer = setTimeout(() => {
             state = 'READY';
@@ -134,28 +153,28 @@
             subText.innerText = '';
             startTime = performance.now();
         }, delay);
-    }
+    }, { once: true });
 
     function showResult() {
         const reactionTime = ((performance.now() - startTime) / 1000).toFixed(3);
-        
         state = 'RESULT';
-        area.className = 'result-view';
+        area.className = 'result-view'; // これでボタンが表示される
         label.innerText = 'RESULT';
         mainDisplay.innerText = reactionTime + 's';
-        subText.innerText = 'もう一度タップして再挑戦';
+        subText.innerText = 'もう一度画面をタップして再挑戦';
 
-        const text = encodeURIComponent(`反射神経テスト結果：${reactionTime}秒\n`);
-        shareBtn.href = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(window.location.href)}`;
+        const text = encodeURIComponent(`反射神経テスト結果：${reactionTime}秒でした！`);
+        const url = encodeURIComponent(window.location.href);
+        shareBtn.href = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
     }
 
     function tooEarly() {
         clearTimeout(timer);
         state = 'RESULT';
-        area.className = 'error';
+        area.className = 'error result-view';
         label.innerText = 'TOO EARLY';
         mainDisplay.innerText = '0.000s';
-        subText.innerText = '色が引く前にタップされました。再挑戦してください。';
+        subText.innerText = 'お手付きです。タップでリトライ';
     }
 </script>
 
