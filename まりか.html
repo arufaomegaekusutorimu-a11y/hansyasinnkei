@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reaction Time Test</title>
+    <style>
+        :root {
+            --bg-default: #ffffff;
+            --bg-waiting: #2c3e50;
+            --bg-ready: #27ae60;
+            --bg-error: #c0392b;
+            --text-main: #2c3e50;
+            --text-light: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-default);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #game-area {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: background-color 0.05s ease;
+            cursor: pointer;
+        }
+
+        /* 状態別背景色 */
+        #game-area.waiting { background-color: var(--bg-waiting); color: var(--text-light); }
+        #game-area.ready { background-color: var(--bg-ready); color: var(--text-light); }
+        #game-area.error { background-color: var(--bg-error); color: var(--text-light); }
+
+        .label { font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; opacity: 0.8; }
+        .main-display { font-size: 3.5rem; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+        .sub-text { font-size: 1rem; margin-top: 20px; }
+
+        /* シェアボタン */
+        #share-container {
+            position: absolute;
+            bottom: 10%;
+            display: none;
+        }
+
+        .share-btn {
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        #game-area.result-view #share-container { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="game-area">
+    <div id="content">
+        <p id="label" class="label">REACTION TEST</p>
+        <h1 id="main-display" class="main-display">TAP TO START</h1>
+        <p id="sub-text" class="sub-text">画面をタップして開始します</p>
+    </div>
+
+    <div id="share-container">
+        <a id="share-x" class="share-btn" target="_blank">X (TWITTER) SHARE</a>
+    </div>
+</div>
+
+<script>
+    const area = document.getElementById('game-area');
+    const label = document.getElementById('label');
+    const mainDisplay = document.getElementById('main-display');
+    const subText = document.getElementById('sub-text');
+    const shareBtn = document.getElementById('share-x');
+
+    let state = 'START'; 
+    let startTime;
+    let timer;
+
+    const handleInput = (e) => {
+        if (e.type === 'touchstart') e.preventDefault();
+        
+        switch(state) {
+            case 'START':
+            case 'RESULT':
+                prepare();
+                break;
+            case 'WAITING':
+                tooEarly();
+                break;
+            case 'READY':
+                showResult();
+                break;
+        }
+    };
+
+    area.addEventListener('mousedown', handleInput);
+    area.addEventListener('touchstart', handleInput);
+
+    function prepare() {
+        state = 'WAITING';
+        area.className = 'waiting';
+        label.innerText = 'WAITING';
+        mainDisplay.innerText = '...';
+        subText.innerText = '緑色に変わったらタップしてください';
+
+        const delay = Math.random() * 3000 + 2000;
+        timer = setTimeout(() => {
+            state = 'READY';
+            area.className = 'ready';
+            label.innerText = 'NOW';
+            mainDisplay.innerText = 'TAP!';
+            subText.innerText = '';
+            startTime = performance.now();
+        }, delay);
+    }
+
+    function showResult() {
+        const reactionTime = ((performance.now() - startTime) / 1000).toFixed(3);
+        
+        state = 'RESULT';
+        area.className = 'result-view';
+        label.innerText = 'RESULT';
+        mainDisplay.innerText = reactionTime + 's';
+        subText.innerText = 'もう一度タップして再挑戦';
+
+        const text = encodeURIComponent(`反射神経テスト結果：${reactionTime}秒\n`);
+        shareBtn.href = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(window.location.href)}`;
+    }
+
+    function tooEarly() {
+        clearTimeout(timer);
+        state = 'RESULT';
+        area.className = 'error';
+        label.innerText = 'TOO EARLY';
+        mainDisplay.innerText = '0.000s';
+        subText.innerText = '色が引く前にタップされました。再挑戦してください。';
+    }
+</script>
+
+</body>
+</html>
