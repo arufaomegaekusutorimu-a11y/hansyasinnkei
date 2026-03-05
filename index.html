@@ -30,7 +30,6 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* ゲームエリア全体 */
         #game-area {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -39,26 +38,29 @@
             justify-content: center;
             align-items: center;
             text-align: center;
-            transition: background-color 0.05s ease;
             cursor: pointer;
             z-index: 1;
+            transition: background-color 0.1s;
         }
 
         #game-area.waiting { background-color: var(--bg-waiting); color: var(--text-light); }
         #game-area.ready { background-color: var(--bg-ready); color: var(--text-light); }
         #game-area.error { background-color: var(--bg-error); color: var(--text-light); }
+        #game-area.result-view { background-color: var(--bg-default); color: var(--text-main); }
 
         .label { font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; opacity: 0.8; }
         .main-display { font-size: 3.5rem; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
-        .sub-text { font-size: 1rem; margin-top: 20px; padding: 0 20px; }
+        .sub-text { font-size: 1rem; margin-top: 20px; padding: 0 20px; line-height: 1.5; }
 
-        /* シェアボタンのコンテナ：ゲームエリアより前面に配置 */
         #share-container {
             position: fixed;
             bottom: 15%;
             z-index: 10;
             display: none;
         }
+
+        /* 状態が result-view の時だけシェアボタンを表示 */
+        .result-view #share-container { display: block; }
 
         .share-btn {
             background: #000;
@@ -72,9 +74,6 @@
             display: block;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
-
-        /* リザルト表示中のみシェアボタンを表示 */
-        .result-view #share-container { display: block; }
     </style>
 </head>
 <body>
@@ -103,48 +102,38 @@
     let startTime;
     let timer;
 
-    // ゲーム全体のクリック処理
+    // 入力イベント
     const handleInput = (e) => {
         if (e.type === 'touchstart') e.preventDefault();
         
-        switch(state) {
-            case 'START':
-            case 'RESULT':
-                prepare();
-                break;
-            case 'WAITING':
-                tooEarly();
-                break;
-            case 'READY':
-                showResult();
-                break;
+        if (state === 'START' || state === 'RESULT') {
+            prepare();
+        } else if (state === 'WAITING') {
+            tooEarly();
+        } else if (state === 'READY') {
+            showResult();
         }
     };
 
     area.addEventListener('mousedown', handleInput);
     area.addEventListener('touchstart', handleInput);
 
-    // 【重要】シェアボタンが押された時にゲームのリセットを防ぐ
-    const preventReset = (e) => {
-        e.stopPropagation(); // 親要素（game-area）へのイベント伝達をストップ
-    };
-
-    shareContainer.addEventListener('mousedown', preventReset);
-    shareContainer.addEventListener('touchstart', preventReset);
+    // シェアボタンのクリックがゲームエリアに伝わらないようにする
+    const stopProp = (e) => e.stopPropagation();
+    shareContainer.addEventListener('mousedown', stopProp);
+    shareContainer.addEventListener('touchstart', stopProp);
 
     function prepare() {
+        // 前回のタイマーを確実に消去
+        clearTimeout(timer);
+        
         state = 'WAITING';
         area.className = 'waiting';
         label.innerText = 'WAITING';
         mainDisplay.innerText = '...';
         subText.innerText = '緑色になったらタップ！';
-    }
 
-    // WAITINGの実際のタイマー開始（描画ラグ考慮）
-    area.addEventListener('transitionend', () => {
-        if (state !== 'WAITING') return;
-        clearTimeout(timer);
-        const delay = Math.random() * 3000 + 2000;
+        const delay = Math.random() * 3000 + 2000; // 2~5秒
         timer = setTimeout(() => {
             state = 'READY';
             area.className = 'ready';
@@ -153,17 +142,17 @@
             subText.innerText = '';
             startTime = performance.now();
         }, delay);
-    }, { once: true });
+    }
 
     function showResult() {
         const reactionTime = ((performance.now() - startTime) / 1000).toFixed(3);
         state = 'RESULT';
-        area.className = 'result-view'; // これでボタンが表示される
+        area.className = 'result-view';
         label.innerText = 'RESULT';
         mainDisplay.innerText = reactionTime + 's';
-        subText.innerText = 'もう一度画面をタップして再挑戦';
+        subText.innerText = 'もう一度タップして再挑戦';
 
-        const text = encodeURIComponent(`反射神経テスト結果：${reactionTime}秒でした！`);
+        const text = encodeURIComponent(`反射神経テスト結果：${reactionTime}秒でした！ #反射神経テスト`);
         const url = encodeURIComponent(window.location.href);
         shareBtn.href = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
     }
@@ -174,7 +163,7 @@
         area.className = 'error result-view';
         label.innerText = 'TOO EARLY';
         mainDisplay.innerText = '0.000s';
-        subText.innerText = 'お手付きです。タップでリトライ';
+        subText.innerText = 'お手付きです。\nタップしてリトライ';
     }
 </script>
 
